@@ -68,11 +68,22 @@ function init()
   end end)
   end
   
+  for i=0,4 do
+  params:add_control("amp" .. i,"amp: " .. i,controlspec.AMP)
+  params:set_action("amp" .. i, function(x) engine.amp(i,x) end)
+  params:set("amp" .. i, 1)
+  end
+  
+  for i=0,4 do
+  params:add_control("pan" .. i,"pan: " .. i,controlspec.PAN)
+  params:set_action("pan" .. i, function(x) engine.pan(i,x) end)
+  params:set("pan" .. i, 0)
+  end
+  
   params:add_separator()
   
   params:add_trigger("reset","reset")
   params:set_action("reset",function(x) reset() end)
-  
 end
 
 auto_mode = function()
@@ -108,7 +119,7 @@ auto_mode = function()
     wait_based_on_density()
   end
 
-local function screen_update_channels()
+function screen_update_channels()
   screen.move(0,32)
   screen.font_size(24)
   for channel=0,4 do
@@ -184,22 +195,6 @@ end
         end
     end
 
-function automode_start()
-  automode = true
-  timer:start()
-  redraw()
-end
-
-function automode_stop()
-  automode = false
-  timer:stop()
-  for i=0,4 do
-        engine.densitySet(i,1)
-        end
-  redraw()
-end
-
-  
   function key(n,z)
     if n == 1 then
       if z == 1 then
@@ -311,7 +306,6 @@ function reset()
   end
   params:set("auto mode", 1)
   params:set("which", 0)
-  
 end
 
 function cleanup()
