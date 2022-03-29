@@ -50,9 +50,9 @@ SynthDef(\onsets, {|in, out, win=4|
 		Out.kr(out, value);
 	}).add;
 
-SynthDef(\loop, {|out, buf, startLoop=0, endLoop, amp=0|
+SynthDef(\loop, {|out, buf, startLoop=0, endLoop, pan=0, amp=0|
 	var sound = LoopBuf.ar(1, buf, 1, 1, 0, startLoop, endLoop, 1);
-	Out.ar(out, Pan2.ar(sound, 0, amp));
+	Out.ar(out, Pan2.ar(sound, pan, amp));
 }).add;
 		s.sync;
 
@@ -82,6 +82,10 @@ record = Array.fill(5, {0});
 		this.addCommand("amp", "if", {|msg|
 			amp = msg[2];
 			loopers[msg[1]].set(\amp, msg[2]);
+		});
+
+		this.addCommand("pan", "if", {|msg|
+			loopers[msg[1]].set(\pan, msg[2]);
 		});
 
 		this.addCommand("densitySet", "if", {|msg|
