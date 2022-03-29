@@ -17,6 +17,7 @@
 engine.name = 'GlitchLooper'
 
 local audio = require 'audio'
+local util = require 'util'
 local selected_channels = {1}
 local loopPlaying = {false, false, false, false, false}
 local recording = {false, false, false, false, false}
@@ -24,7 +25,7 @@ local glitched = {false, false, false, false, false}
 local which = 0
 local alt = false
 local automode = false
-local density = 0
+density = 0
 
 function init()
   print("glitched looper")
@@ -37,71 +38,74 @@ function init()
   timer = metro.init(auto_mode,1,-1)
   
   --params
+  params:add_separator("auto mode settings")
   params:add_option("auto mode","auto mode",{"off","on"},1)
   params:set_action("auto mode", function(x) if x == 2 then automode_start() elseif x == 1 then automode_stop() end end )
-    
+  params:add_control("min_wait_time","minimum wait time",controlspec.new(0.1,10,'lin',0.1,0.5,'sec'))
+  params:add_control("max_wait_time","maximum wait time",controlspec.new(10,100,'lin',0.1,10,'sec'))
+  params:add_option("density_polarity", "density",{"increases wait time","decreases wait time"},1)
+  params:add_control("glitch_prob", "glitch probability",controlspec.new(0,1,'lin',0.1,0.5))
+  params:add_control("stop_playing_prob", "stop play probability",controlspec.new(0,1,'lin',0.1,0.5))
+  
+  params:add_separator("loop settings")
   params:add_number("which","buffer",0,4,0,nil,true)
   params:set_action("which",function(x) which = x; redraw() end)
   
-  --params:add_option("state","state",{"cleared","recording","playing"},1)
- --params:set_action("state", function(x) 
-   -- if x == 1 then clear_buffer(params:get("which")) 
-    --elseif x == 2 then record_buffer(params:get("which"))
-    --elseif x == 3 then play_buffer(params:get("which"))
-    --  end end )
-  
-    for i=0,4 do
-      --params:add_option("record: ".. i, "record: ".. i, "recording")
-      end
+  for i=0,4 do
+  params:add_option("state" .. i,"state: " .. i,{"cleared","recording","playing"},1)
+  params:set_action("state" .. i, function(x) 
+   if x == 1 then clear_buffer(i) 
+  elseif x == 2 then record_buffer(i)
+  elseif x == 3 then play_buffer(i)
+  end end)
   end
+  
+  for i=0,4 do
+  params:add_option("mode" .. i,"mode: " .. i,{"normal","glitched"},1)
+  params:set_action("mode" .. i, function(x) 
+   if x == 1 then set_normal(i) 
+  elseif x == 2 then set_glitched(i)
+  end end)
+  end
+  
+  params:add_separator()
+  
+  params:add_trigger("reset","reset")
+  params:set_action("reset",function(x) reset() end)
+  
+end
 
 auto_mode = function()
-    print("density ".. density)
+    print("density " .. density)
     print("running auto mode")
+    --choose new channel for iteration
+    params:set("which",(math.random(5)-1))
+    print("chosen new which")
+    print(which)
     if recording[which] == false then
     -- start recording
-    loopPlaying[which] = false
-    redraw()
-    recording[which] = true
-    engine.recStart(which)
-    redraw()
-    --wait
-    timer.time = (math.random()*density)+0.5
+    params:set("state" .. which, 2) -- record_buffer
+    --wait longer if density is higher or shorter if density polarity is activated
+    wait_based_on_density()
     elseif recording[which] == true then
     -- stop recording and begin playback
-    engine.recEnd(which)
-    engine.amp(which, 1.0)
-    recording[which] = false
-    loopPlaying[which] = true
-    redraw()
-    --choose new channel for next iteration
-    which = (math.random(5)-1)
-    print(which)
+    params:set("state" .. which, 3) -- play_buffer
     end
-    -- choose normal or glitch
-    if math.random() > 0.5 then
-      engine.glitch(which)
-      engine.densitySet(which, (1/density))
-      glitched[which] = true
-      redraw()
+    
+    -- choose normal or glitch based on glitch probability
+    if math.random() <= params:get("glitch_prob") then
+      params:set("mode" .. which, 2) -- glitch mode
       else
-      engine.normal(which)
-      glitched[which] = false
-      redraw()
+      params:set("mode" .. which, 1) -- normal mode
       end
-      -- maybe stop playing
+      -- maybe stop playing based on stop playing probability
       if loopPlaying[which] == true then
-      if math.random() > 0.5 then
-        engine.amp(which, 0.0)
-          loopPlaying[which] = false
-          redraw()
-          print("loop ended")
-          which = (math.random(5)-1)
-          print(which)
+      if math.random() <= params:get("stop_playing_prob") then
+          params:set("state" .. which, 1) -- clear_buffer
           end
         end
     -- wait
-    timer.time = (math.random()*density)+0.5
+    wait_based_on_density()
   end
 
 local function screen_update_channels()
@@ -161,24 +165,21 @@ end
 
   function enc(n,d)
     if n == 2 then
+      local value = params:get("which")
       if d > 0 then
-        which = (which + 1) % 5
+        value = (value + 1) % 5
         else
-      which = (which - 1) % 5
+      value = (value - 1) % 5
       end
-      params:set("which",which)
+      params:set("which",value)
       redraw()
       end
       if n == 3 then
         if d > 0 then
-          engine.glitch(which)
-          glitched[which] = true
-          redraw()
+          params:set("mode" .. which,2) -- set_glitched
           end
           if d < 0 then
-            engine.normal(which)
-            glitched[which] = false
-            redraw()
+            params:set("mode" .. which, 1) -- set_normal
             end
         end
     end
@@ -224,7 +225,7 @@ end
         --automode_stop()
         params:set("auto mode",1)
         elseif alt == false then
-          clear_buffer(params:get("which"))
+          clear_buffer(which)
           end
         end
       end
@@ -238,6 +239,23 @@ function redraw()
   screen.text("Glitch Looper")
   screen_update_channels()
   screen.update()
+end
+
+-- new functions
+
+function automode_start()
+  automode = true
+  timer:start()
+  redraw()
+end
+
+function automode_stop()
+  automode = false
+  timer:stop()
+  for i=0,4 do
+        engine.densitySet(i,1)
+        end
+  redraw()
 end
 
 function record_buffer(which)
@@ -259,11 +277,43 @@ function clear_buffer(which)
   recording[which] = false
   engine.amp(which, 0.0)
   loopPlaying[which] = false
+  print("loop" .. which .. "cleared")
   redraw()
+end
+
+function set_normal(which)
+  engine.normal(which)
+  glitched[which] = false
+  redraw()
+end
+
+function set_glitched(which)
+  engine.glitch(which)
+  glitched[which] = true
+  redraw()
+end
+
+function wait_based_on_density()
+  if params:get("density_polarity") == 1 then
+    --increase wait time
+    local waittime = util.linlin(0,15,params:get("min_wait_time"),params:get("max_wait_time"),density)
+    timer.time = waittime
+  elseif params:get("density_polarity") == 2 then
+    local waittime = util.linlin(15,0,params:get("max_wait_time"),params:get("min_wait_time"),density)
+    timer.time = waittime
+  end
+end
+
+function reset()
+  for i=0,4 do
+    clear_buffer(i)
+    set_normal(i)
+  end
+  params:set("auto mode", 1)
+  params:set("which", 0)
+  
 end
 
 function cleanup()
   audio.monitor_stereo()
 end
-
-  
