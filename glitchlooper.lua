@@ -301,8 +301,8 @@ end
 
 function reset()
   for i=0,4 do
-    clear_buffer(i)
-    set_normal(i)
+    params:set("state" .. i, 1) -- clear_buffer
+    params:set("mode" .. i, 1) -- set_normal
   end
   params:set("auto mode", 1)
   params:set("which", 0)
