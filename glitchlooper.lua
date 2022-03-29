@@ -214,9 +214,9 @@ end
         params:set("auto mode",2)
       elseif alt == false then
         if z == 1 then
-        record_buffer(which)
+        params:set("state" .. which, 2) -- record_buffer
         elseif z == 0 then
-          play_buffer(which)
+          params:set("state" .. which, 3) -- play_buffer
           end
         end
       end
@@ -225,7 +225,7 @@ end
         --automode_stop()
         params:set("auto mode",1)
         elseif alt == false then
-          clear_buffer(which)
+          params:set("state" .. which, 1) -- clear_buffer
           end
         end
       end
@@ -317,3 +317,5 @@ end
 function cleanup()
   audio.monitor_stereo()
 end
+
+  
