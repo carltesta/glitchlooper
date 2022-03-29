@@ -317,5 +317,3 @@ end
 function cleanup()
   audio.monitor_stereo()
 end
-
-  
